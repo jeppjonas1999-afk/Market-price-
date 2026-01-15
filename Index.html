@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Market Price</title>
+    <style>
+        body { 
+            background: #222; 
+            color: white; 
+            font-family: 'Courier New', Courier, monospace; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        
+        #game-container {
+            width: 600px;
+            height: 400px;
+            background-color: #4a6741; 
+            position: relative;
+            overflow: hidden;
+            border: 6px solid #1a1a1a;
+            image-rendering: pixelated; 
+            cursor: crosshair;
+        }
+
+        /* The Hero */
+        #player {
+            width: 32px;
+            height: 32px;
+            background-color: #3498db; 
+            position: absolute;
+            z-index: 5;
+            border: 2px solid #000;
+        }
+
+        /* The Market Stand */
+        #market-stall {
+            width: 100px;
+            height: 60px;
+            background-color: #e67e22;
+            position: absolute;
+            top: 150px;
+            left: 250px;
+            z-index: 10; 
+            border: 3px solid #5d2e0a;
+        }
+
+        /* The Drill */
+        #the-drill {
+            width: 40px;
+            height: 60px;
+            background-color: #7f8c8d;
+            position: absolute;
+            top: 100px; 
+            left: 280px;
+            z-index: 2; 
+            border-bottom: 5px solid #333;
+        }
+
+        .instructions {
+            margin-top: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>MARKET PRICE</h1>
+    
+    <div id="game-container">
+        <div id="the-drill"></div>
+        <div id="market-stall"></div>
+        <div id="player"></div>
+    </div>
+
+    <div class="instructions">
+        <p>Use <b>WASD</b> or <b>Arrow Keys</b> to Move</p>
+        <p id="status">Status: Ready to Play</p>
+    </div>
+
+    <script>
+        const player = document.getElementById('player');
+        const container = document.getElementById('game-container');
+        const statusText = document.getElementById('status');
+
+        // Player starting position
+        let posX = 100;
+        let posY = 200;
+        const speed = 5;
+
+        // Key tracking
+        const keys = {};
+
+        window.addEventListener('keydown', (e) => {
+            keys[e.key.toLowerCase()] = true; // Use lowercase to catch 'W' and 'w'
+            statusText.innerText = "Status: Moving...";
+        });
+
+        window.addEventListener('keyup', (e) => {
+            keys[e.key.toLowerCase()] = false;
+            if (!Object.values(keys).includes(true)) {
+                statusText.innerText = "Status: Idle";
+            }
+        });
+
+        function gameLoop() {
+            // Movement Logic (Supports diagonals)
+            if (keys['arrowup'] || keys['w']) posY -= speed;
+            if (keys['arrowdown'] || keys['s']) posY += speed;
+            if (keys['arrowleft'] || keys['a']) posX -= speed;
+            if (keys['arrowright'] || keys['d']) posX += speed;
+
+            // Boundary Checks
+            if (posX < 0) posX = 0;
+            if (posY < 0) posY = 0;
+            if (posX > container.clientWidth - 32) posX = container.clientWidth - 32;
+            if (posY > container.clientHeight - 32) posY = container.clientHeight - 32;
+
+            // Update player visuals
+            player.style.transform = `translate(${posX}px, ${posY}px)`;
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Initialize position
+        gameLoop();
+    </script>
+</body>
+</html>
