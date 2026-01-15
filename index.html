@@ -6,7 +6,7 @@
     <title>Market Price</title>
     <style>
         body { 
-            background: #222; 
+            background: #1a1a1a; 
             color: white; 
             font-family: 'Courier New', Courier, monospace; 
             display: flex; 
@@ -19,11 +19,11 @@
         
         #game-container {
             width: 600px;
-            height: 400px;
+            height: 500px; /* Made it taller */
             background-color: #4a6741; 
             position: relative;
             overflow: hidden;
-            border: 6px solid #1a1a1a;
+            border: 6px solid #333;
             image-rendering: pixelated; 
         }
 
@@ -33,39 +33,50 @@
             height: 32px;
             background-color: #3498db; 
             position: absolute;
-            z-index: 5; /* Lower than the stall so they are 'behind' it */
+            z-index: 5;
             border: 2px solid #000;
         }
 
-        /* The Market Stand */
+        /* The Market Stand - Pushed further down */
         #market-stall {
-            width: 150px;
-            height: 80px;
+            width: 250px;
+            height: 40px;
             background-color: #e67e22;
             position: absolute;
-            top: 200px; /* Positioned in the middle */
-            left: 225px;
-            z-index: 10; /* Higher than player to hide them when behind */
+            top: 350px; /* Pushed down toward the bottom */
+            left: 175px;
+            z-index: 10; 
             border: 4px solid #5d2e0a;
-            display: flex;
-            align-items: center;
-            justify-content: center;
+            text-align: center;
+            line-height: 40px;
             font-weight: bold;
         }
 
-        /* The Drill */
+        /* The Drill - Larger and more visible */
         #the-drill {
-            width: 50px;
-            height: 70px;
+            width: 80px;  /* Larger */
+            height: 100px; /* Larger */
             background-color: #7f8c8d;
             position: absolute;
-            top: 50px; 
-            left: 275px;
+            top: 20px;   /* At the very back */
+            left: 260px;
             z-index: 2; 
-            border-bottom: 8px solid #333;
+            border: 4px solid #333;
+            border-bottom: 12px solid #222;
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
-        .instructions { margin-top: 10px; text-align: center; }
+        /* Small detail to make the drill look like a drill */
+        #the-drill::after {
+            content: "V";
+            font-size: 40px;
+            color: #333;
+            font-weight: bold;
+        }
+
+        .instructions { margin-top: 15px; text-align: center; color: #aaa; }
     </style>
 </head>
 <body>
@@ -74,23 +85,22 @@
     
     <div id="game-container">
         <div id="the-drill"></div>
-        <div id="market-stall">SHOP</div>
+        <div id="market-stall">COUNTER</div>
         <div id="player"></div>
     </div>
 
     <div class="instructions">
-        <p>Use <b>WASD</b> to move behind the counter!</p>
+        <p><b>WASD</b> to move. Customers will arrive from the bottom!</p>
     </div>
 
     <script>
         const player = document.getElementById('player');
         const container = document.getElementById('game-container');
 
-        // SPAWN POSITION: Behind the stall
+        // SPAWN: In your workspace
         let posX = 284; 
-        let posY = 150; 
-        const speed = 4;
-
+        let posY = 200; 
+        const speed = 5;
         const keys = {};
 
         window.addEventListener('keydown', (e) => keys[e.key.toLowerCase()] = true);
@@ -105,22 +115,17 @@
             if (keys['arrowleft'] || keys['a']) nextX -= speed;
             if (keys['arrowright'] || keys['d']) nextX += speed;
 
-            // --- COLLISION LOGIC ---
-            
-            // 1. Boundary Checks (Outer Walls)
+            // --- BOUNDARIES ---
             if (nextX < 0) nextX = 0;
             if (nextY < 0) nextY = 0;
             if (nextX > container.clientWidth - 32) nextX = container.clientWidth - 32;
-            if (nextY > container.clientHeight - 32) nextY = container.clientHeight - 32;
-
-            // 2. The "Counter" Barrier
-            // We prevent the player from going below Y = 165 (just behind the stall)
-            // This keeps the player in the "back office" area.
-            if (nextY > 165) {
-                nextY = 165;
+            
+            // STOP at the back of the stall (the counter)
+            // Stall is at 350px, so we stop the player at 318px (350 - 32 player height)
+            if (nextY > 318) {
+                nextY = 318;
             }
 
-            // Apply valid movement
             posX = nextX;
             posY = nextY;
             player.style.transform = `translate(${posX}px, ${posY}px)`;
