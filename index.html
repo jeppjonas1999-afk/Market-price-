@@ -2,7 +2,6 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Market Price</title>
     <style>
         body { 
@@ -10,156 +9,151 @@
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             height: 100vh; margin: 0; overflow: hidden;
         }
+        #ui-panel { margin-bottom: 10px; font-size: 22px; font-weight: bold; color: #f1c40f; }
         
         #game-container {
             width: 600px; height: 500px; background-color: #4a6741; 
             position: relative; border: 6px solid #333; image-rendering: pixelated; 
         }
 
-        #ui-panel { margin-bottom: 10px; font-size: 20px; font-weight: bold; }
-
-        /* The Drill */
+        /* The Drill Area */
         #drill-container {
             position: absolute; top: 20px; left: 250px;
-            display: flex; flex-direction: column; align-items: center;
+            width: 100px; display: flex; flex-direction: column; align-items: center;
         }
-
         #progress-wrapper {
-            width: 100px; height: 12px; border: 2px solid #000; background: #333; margin-bottom: 5px;
+            width: 100px; height: 15px; border: 2px solid #000; background: #333; margin-bottom: 5px;
         }
-
         #progress-fill { width: 0%; height: 100%; background: #f1c40f; }
 
         #the-drill {
             width: 100px; height: 100px; background-color: #7f8c8d;
-            border: 4px solid #333; border-bottom: 12px solid #222;
+            border: 4px solid #333; border-bottom: 10px solid #222;
             display: flex; justify-content: center; align-items: center; font-size: 40px;
         }
 
-        /* The Resource Crate */
-        .crate {
-            width: 25px; height: 25px; background-color: #d35400;
-            border: 2px solid #5d2e0a; position: absolute;
-            z-index: 4; display: flex; align-items: center; justify-content: center;
-            font-size: 12px; font-weight: bold; color: #5d2e0a;
-        }
-
-        /* Player & Stall */
+        /* Player & Objects */
         #player {
             width: 32px; height: 32px; background-color: #3498db; 
             position: absolute; z-index: 5; border: 2px solid #000;
         }
-
         #market-stall {
             width: 250px; height: 40px; background-color: #e67e22;
-            position: absolute; top: 380px; left: 175px;
+            position: absolute; top: 400px; left: 175px;
             z-index: 10; border: 4px solid #5d2e0a;
             text-align: center; line-height: 40px; font-weight: bold;
         }
+        .crate {
+            width: 20px; height: 20px; background-color: #d35400;
+            border: 2px solid #5d2e0a; position: absolute; z-index: 4;
+        }
+        #prompt { position: absolute; bottom: 20px; color: yellow; font-weight: bold; display: none; }
     </style>
 </head>
 <body>
 
     <div id="ui-panel">Inventory: <span id="resource-count">0</span></div>
     
-    <div id="game-container" id="game-container">
+    <div id="game-container">
         <div id="drill-container">
             <div id="progress-wrapper"><div id="progress-fill"></div></div>
             <div id="the-drill">⚙️</div>
         </div>
         <div id="market-stall">COUNTER</div>
         <div id="player"></div>
+        <div id="prompt">PRESS E TO PICK UP</div>
     </div>
-
-    <p><b>WASD</b>: Move | <b>SPACE</b>: Boost Drill | <b>E</b>: Pick up Crate</p>
 
     <script>
         const player = document.getElementById('player');
-        const container = document.getElementById('game-container');
         const progressFill = document.getElementById('progress-fill');
         const resourceText = document.getElementById('resource-count');
+        const prompt = document.getElementById('prompt');
+        const container = document.getElementById('game-container');
 
-        let posX = 284; let posY = 200;
-        let inventory = 0;
-        let drillProgress = 0;
-        let activeCrates = []; 
-        const speed = 5;
+        let posX = 284, posY = 250;
+        let inventory = 0, drillProgress = 0;
+        let activeCrates = [];
+        const speed = 4;
         const keys = {};
 
         window.addEventListener('keydown', (e) => {
-            const key = e.key.toLowerCase();
-            keys[key] = true;
-
+            keys[e.key.toLowerCase()] = true;
             if (e.code === "Space") boostDrill();
-            if (key === "e") tryPickUp();
+            if (e.key.toLowerCase() === "e") tryPickUp();
         });
         window.addEventListener('keyup', (e) => keys[e.key.toLowerCase()] = false);
 
         function boostDrill() {
-            if (getDistance(posX, posY, 250, 20) < 150) {
-                drillProgress += 10;
-                if (drillProgress > 100) drillProgress = 100;
+            if (getDist(posX, posY, 250, 60) < 100) {
+                drillProgress = Math.min(100, drillProgress + 10);
             }
         }
 
         function tryPickUp() {
-            activeCrates.forEach((crate, index) => {
-                const crateRect = crate.getBoundingClientRect();
-                const containerRect = container.getBoundingClientRect();
-                const cX = crateRect.left - containerRect.left;
-                const cY = crateRect.top - containerRect.top;
-
-                if (getDistance(posX, posY, cX, cY) < 60) {
+            activeCrates.forEach((crate, i) => {
+                if (getDist(posX, posY, parseInt(crate.style.left), parseInt(crate.style.top)) < 50) {
                     inventory++;
                     resourceText.innerText = inventory;
                     crate.remove();
-                    activeCrates.splice(index, 1);
+                    activeCrates.splice(i, 1);
                 }
             });
         }
 
-        function spawnCrate() {
-            const crate = document.createElement('div');
-            crate.className = 'crate';
-            crate.innerText = "■";
-            // Spawn crate near the bottom of the drill
-            crate.style.left = (250 + Math.random() * 70) + "px";
-            crate.style.top = "130px";
-            container.appendChild(crate);
-            activeCrates.push(crate);
-        }
-
-        function getDistance(x1, y1, x2, y2) {
-            return Math.sqrt((x1 - x2) ** 2 + (y1 - y2) ** 2);
-        }
+        function getDist(x1, y1, x2, y2) { return Math.sqrt((x1-x2)**2 + (y1-y2)**2); }
 
         function gameLoop() {
-            // Drill logic
-            if (drillProgress < 100) {
-                drillProgress += 0.15;
-            } else {
+            // 1. Drill Logic
+            drillProgress += 0.2; // Auto-fill
+            if (drillProgress >= 100) {
                 drillProgress = 0;
                 spawnCrate();
             }
             progressFill.style.width = drillProgress + "%";
 
-            // Movement
-            let nextX = posX; let nextY = posY;
+            // 2. Movement Calculation
+            let nextX = posX;
+            let nextY = posY;
             if (keys['w']) nextY -= speed;
             if (keys['s']) nextY += speed;
             if (keys['a']) nextX -= speed;
             if (keys['d']) nextX += speed;
 
-            // Boundaries
-            if (nextX < 0) nextX = 0;
-            if (nextY < 0) nextY = 0;
-            if (nextX > 568) nextX = 568;
-            if (nextY > 348) nextY = 348;
+            // 3. HITBOXES (Collision)
+            let canMove = true;
 
-            posX = nextX; posY = nextY;
-            player.style.transform = `translate(${posX}px, ${posY}px)`;
+            // Drill Hitbox (Top area)
+            if (nextX > 210 && nextX < 350 && nextY > 10 && nextY < 125) canMove = false;
+
+            // Counter Hitbox (Bottom area)
+            if (nextY > 365) canMove = false;
+
+            // Screen Boundaries
+            if (nextX < 0 || nextX > 568 || nextY < 0) canMove = false;
+
+            if (canMove) {
+                posX = nextX;
+                posY = nextY;
+            }
+
+            player.style.left = posX + "px";
+            player.style.top = posY + "px";
+
+            // 4. Interaction Prompt
+            let nearCrate = activeCrates.some(c => getDist(posX, posY, parseInt(c.style.left), parseInt(c.style.top)) < 50);
+            prompt.style.display = nearCrate ? "block" : "none";
 
             requestAnimationFrame(gameLoop);
+        }
+
+        function spawnCrate() {
+            const c = document.createElement('div');
+            c.className = 'crate';
+            c.style.left = (240 + Math.random() * 100) + "px";
+            c.style.top = "140px";
+            container.appendChild(c);
+            activeCrates.push(c);
         }
 
         gameLoop();
