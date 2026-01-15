@@ -9,22 +9,29 @@
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             height: 100vh; margin: 0; overflow: hidden;
         }
-        #ui-panel { margin-bottom: 10px; font-size: 22px; font-weight: bold; color: #f1c40f; }
+        #ui-panel { margin-bottom: 10px; font-size: 20px; font-weight: bold; display: flex; gap: 20px; }
+        #gold-display { color: #f1c40f; }
+        #inv-display { color: #3498db; }
         
         #game-container {
-            width: 600px; height: 500px; background-color: #4a6741; 
+            width: 800px; height: 600px; background-color: #4a6741; 
             position: relative; border: 6px solid #333; image-rendering: pixelated; 
+        }
+
+        /* Plot Styling */
+        .plot {
+            width: 100px; height: 100px; background-color: #5d4037;
+            border: 2px dashed #3e2723; position: absolute;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            font-size: 12px; color: #d7ccc8; text-align: center;
         }
 
         /* The Drill */
         #drill-container {
-            position: absolute; top: 20px; left: 250px;
-            width: 100px; height: 120px; /* Defined height for collision */
-            display: flex; flex-direction: column; align-items: center;
+            position: absolute; top: 20px; left: 350px;
+            width: 100px; z-index: 2;
         }
-        #progress-wrapper {
-            width: 100px; height: 15px; border: 2px solid #000; background: #333; margin-bottom: 5px;
-        }
+        #progress-wrapper { width: 100px; height: 10px; border: 2px solid #000; background: #333; margin-bottom: 2px; }
         #progress-fill { width: 0%; height: 100%; background: #f1c40f; }
         #the-drill {
             width: 100px; height: 100px; background-color: #7f8c8d;
@@ -32,58 +39,77 @@
             display: flex; justify-content: center; align-items: center; font-size: 40px;
         }
 
-        #player {
-            width: 32px; height: 32px; background-color: #3498db; 
-            position: absolute; z-index: 5; border: 2px solid #000;
-        }
-
+        #player { width: 32px; height: 32px; background-color: #3498db; position: absolute; z-index: 10; border: 2px solid #000; }
         #market-stall {
-            width: 250px; height: 40px; background-color: #e67e22;
-            position: absolute; top: 400px; left: 175px;
-            z-index: 10; border: 4px solid #5d2e0a;
+            width: 300px; height: 40px; background-color: #e67e22;
+            position: absolute; top: 500px; left: 250px;
+            z-index: 15; border: 4px solid #5d2e0a;
             text-align: center; line-height: 40px; font-weight: bold;
         }
 
-        .crate { width: 24px; height: 24px; background-color: #d35400; border: 2px solid #5d2e0a; position: absolute; }
-        #prompt { position: absolute; bottom: 80px; width: 100%; text-align: center; color: yellow; font-weight: bold; display: none; }
+        .crate { width: 20px; height: 20px; background-color: #d35400; border: 2px solid #5d2e0a; position: absolute; z-index: 5; }
+        #prompt { position: absolute; bottom: 120px; width: 100%; text-align: center; color: yellow; font-weight: bold; display: none; z-index: 20; }
     </style>
 </head>
 <body>
 
-    <div id="ui-panel">Inventory: <span id="resource-count">0</span></div>
+    <div id="ui-panel">
+        <div id="inv-display">Inventory: <span id="resource-count">0</span></div>
+        <div id="gold-display">Gold: $<span id="gold-count">0</span></div>
+    </div>
     
-    <div id="game-container" id="game-view">
+    <div id="game-container">
+        <div class="plot" style="top: 20px; left: 50px;">PLOT 1<br>$50</div>
+        <div class="plot" style="top: 140px; left: 50px;">PLOT 2<br>$100</div>
+        <div class="plot" style="top: 260px; left: 50px;">PLOT 3<br>$200</div>
+        <div class="plot" style="top: 380px; left: 50px;">PLOT 4<br>$400</div>
+
+        <div class="plot" style="top: 20px; left: 650px;">PLOT 5<br>$50</div>
+        <div class="plot" style="top: 140px; left: 650px;">PLOT 6<br>$100</div>
+        <div class="plot" style="top: 260px; left: 650px;">PLOT 7<br>$200</div>
+        <div class="plot" style="top: 380px; left: 650px;">PLOT 8<br>$400</div>
+
         <div id="drill-container">
             <div id="progress-wrapper"><div id="progress-fill"></div></div>
             <div id="the-drill">⚙️</div>
         </div>
-        <div id="market-stall">COUNTER</div>
+
+        <div id="market-stall">COUNTER (PRESS E TO SELL)</div>
         <div id="player"></div>
-        <div id="prompt">PRESS E TO PICK UP</div>
+        <div id="prompt">ACTION AVAILABLE (E)</div>
     </div>
 
     <script>
         const player = document.getElementById('player');
         const progressFill = document.getElementById('progress-fill');
         const resourceText = document.getElementById('resource-count');
+        const goldText = document.getElementById('gold-count');
         const prompt = document.getElementById('prompt');
         const container = document.getElementById('game-container');
 
-        let posX = 284, posY = 250;
-        let inventory = 0, drillProgress = 0;
+        let posX = 384, posY = 300;
+        let inventory = 0, gold = 0, drillProgress = 0;
         let activeCrates = [];
-        const speed = 4;
+        const speed = 5;
         const keys = {};
 
         window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; });
         window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
 
-        // Logic for interaction keys (E and Space)
         window.addEventListener('keypress', (e) => {
+            const key = e.key.toLowerCase();
             if (e.code === "Space") {
-                if (getDist(posX, posY, 250, 60) < 120) drillProgress = Math.min(100, drillProgress + 10);
+                if (getDist(posX, posY, 350, 60) < 120) drillProgress = Math.min(100, drillProgress + 10);
             }
-            if (e.key.toLowerCase() === "e") {
+            if (key === "e") {
+                // Sell logic at counter
+                if (posY > 450 && inventory > 0) {
+                    gold += inventory * 10;
+                    inventory = 0;
+                    goldText.innerText = gold;
+                    resourceText.innerText = inventory;
+                }
+                // Pick up logic
                 activeCrates.forEach((crate, i) => {
                     if (getDist(posX, posY, parseInt(crate.style.left), parseInt(crate.style.top)) < 50) {
                         inventory++;
@@ -98,21 +124,45 @@
         function getDist(x1, y1, x2, y2) { return Math.sqrt((x1-x2)**2 + (y1-y2)**2); }
 
         function gameLoop() {
-            // 1. Drill Progress
-            if (drillProgress < 100) {
-                drillProgress += 0.15;
-            } else {
-                drillProgress = 0;
-                spawnCrate();
-            }
+            drillProgress += 0.15;
+            if (drillProgress >= 100) { drillProgress = 0; spawnCrate(); }
             progressFill.style.width = drillProgress + "%";
 
-            // 2. Movement Logic
-            let nextX = posX;
-            let nextY = posY;
+            let nextX = posX; let nextY = posY;
             if (keys['w']) nextY -= speed;
             if (keys['s']) nextY += speed;
             if (keys['a']) nextX -= speed;
             if (keys['d']) nextX += speed;
 
-            // 3. COLLISION BOX
+            let collision = false;
+            // Drill Hitbox
+            if (nextX < 450 && nextX + 32 > 350 && nextY < 120 && nextY + 32 > 20) collision = true;
+            // Counter Hitbox
+            if (nextY + 32 > 500) collision = true;
+            // Screen Boundaries
+            if (nextX < 0 || nextX > 768 || nextY < 0) collision = true;
+
+            if (!collision) { posX = nextX; posY = nextY; }
+            player.style.left = posX + "px"; player.style.top = posY + "px";
+
+            // Prompt logic
+            let nearCrate = activeCrates.some(c => getDist(posX, posY, parseInt(c.style.left), parseInt(c.style.top)) < 50);
+            let nearCounter = (posY > 450);
+            prompt.style.display = (nearCrate || nearCounter) ? "block" : "none";
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function spawnCrate() {
+            const c = document.createElement('div');
+            c.className = 'crate';
+            c.style.left = (350 + Math.random() * 80) + "px";
+            c.style.top = "130px";
+            container.appendChild(c);
+            activeCrates.push(c);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
