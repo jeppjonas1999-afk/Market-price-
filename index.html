@@ -2,166 +2,224 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Market Price</title>
+    <title>Market Price - Tycoon</title>
     <style>
         body { 
             background: #1a1a1a; color: white; font-family: 'Courier New', monospace; 
             display: flex; flex-direction: column; align-items: center; justify-content: center;
             height: 100vh; margin: 0; overflow: hidden;
         }
-        #ui-panel { margin-bottom: 10px; font-size: 20px; font-weight: bold; display: flex; gap: 20px; }
+        #ui-panel { margin-bottom: 10px; font-size: 20px; font-weight: bold; display: flex; gap: 20px; background: #333; padding: 10px; border-radius: 5px; }
         #gold-display { color: #f1c40f; }
-        #inv-display { color: #3498db; }
+        #cost-display { color: #e74c3c; }
         
         #game-container {
             width: 800px; height: 600px; background-color: #4a6741; 
             position: relative; border: 6px solid #333; image-rendering: pixelated; 
         }
 
-        /* Plot Styling */
         .plot {
             width: 100px; height: 100px; background-color: #5d4037;
             border: 2px dashed #3e2723; position: absolute;
             display: flex; flex-direction: column; align-items: center; justify-content: center;
-            font-size: 12px; color: #d7ccc8; text-align: center;
+            font-size: 10px; color: #d7ccc8; text-align: center; z-index: 1;
         }
 
-        /* The Drill */
-        #drill-container {
-            position: absolute; top: 20px; left: 350px;
-            width: 100px; z-index: 2;
-        }
-        #progress-wrapper { width: 100px; height: 10px; border: 2px solid #000; background: #333; margin-bottom: 2px; }
-        #progress-fill { width: 0%; height: 100%; background: #f1c40f; }
-        #the-drill {
+        /* Drill Styling */
+        .drill-machine {
             width: 100px; height: 100px; background-color: #7f8c8d;
             border: 4px solid #333; border-bottom: 10px solid #222;
             display: flex; justify-content: center; align-items: center; font-size: 40px;
         }
 
+        .progress-bar { width: 100px; height: 8px; border: 2px solid #000; background: #333; margin-bottom: 2px; }
+        .progress-fill { width: 0%; height: 100%; background: #f1c40f; }
+
         #player { width: 32px; height: 32px; background-color: #3498db; position: absolute; z-index: 10; border: 2px solid #000; }
         #market-stall {
             width: 300px; height: 40px; background-color: #e67e22;
-            position: absolute; top: 500px; left: 250px;
+            position: absolute; top: 520px; left: 250px;
             z-index: 15; border: 4px solid #5d2e0a;
             text-align: center; line-height: 40px; font-weight: bold;
         }
 
         .crate { width: 20px; height: 20px; background-color: #d35400; border: 2px solid #5d2e0a; position: absolute; z-index: 5; }
-        #prompt { position: absolute; bottom: 120px; width: 100%; text-align: center; color: yellow; font-weight: bold; display: none; z-index: 20; }
+        #prompt { position: absolute; bottom: 100px; width: 100%; text-align: center; color: yellow; font-weight: bold; z-index: 20; font-size: 18px; }
     </style>
 </head>
 <body>
 
     <div id="ui-panel">
-        <div id="inv-display">Inventory: <span id="resource-count">0</span></div>
         <div id="gold-display">Gold: $<span id="gold-count">0</span></div>
+        <div id="inv-display">Crates: <span id="resource-count">0</span></div>
+        <div id="cost-display">Next Drill: $<span id="next-cost">100</span></div>
     </div>
     
-    <div id="game-container">
-        <div class="plot" style="top: 20px; left: 50px;">PLOT 1<br>$50</div>
-        <div class="plot" style="top: 140px; left: 50px;">PLOT 2<br>$100</div>
-        <div class="plot" style="top: 260px; left: 50px;">PLOT 3<br>$200</div>
-        <div class="plot" style="top: 380px; left: 50px;">PLOT 4<br>$400</div>
-
-        <div class="plot" style="top: 20px; left: 650px;">PLOT 5<br>$50</div>
-        <div class="plot" style="top: 140px; left: 650px;">PLOT 6<br>$100</div>
-        <div class="plot" style="top: 260px; left: 650px;">PLOT 7<br>$200</div>
-        <div class="plot" style="top: 380px; left: 650px;">PLOT 8<br>$400</div>
-
-        <div id="drill-container">
-            <div id="progress-wrapper"><div id="progress-fill"></div></div>
-            <div id="the-drill">⚙️</div>
-        </div>
-
-        <div id="market-stall">COUNTER (PRESS E TO SELL)</div>
+    <div id="game-container" id="game-world">
+        <div id="market-stall">COUNTER (E to Sell)</div>
         <div id="player"></div>
-        <div id="prompt">ACTION AVAILABLE (E)</div>
+        <div id="prompt"></div>
     </div>
 
     <script>
-        const player = document.getElementById('player');
-        const progressFill = document.getElementById('progress-fill');
-        const resourceText = document.getElementById('resource-count');
-        const goldText = document.getElementById('gold-count');
-        const prompt = document.getElementById('prompt');
         const container = document.getElementById('game-container');
+        const goldText = document.getElementById('gold-count');
+        const resourceText = document.getElementById('resource-count');
+        const costText = document.getElementById('next-cost');
+        const prompt = document.getElementById('prompt');
+        const player = document.getElementById('player');
 
         let posX = 384, posY = 300;
-        let inventory = 0, gold = 0, drillProgress = 0;
+        let gold = 0, inventory = 0, nextDrillCost = 100;
+        let keys = {};
         let activeCrates = [];
-        const speed = 5;
-        const keys = {};
+        let plots = [];
 
-        window.addEventListener('keydown', (e) => { keys[e.key.toLowerCase()] = true; });
-        window.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+        // Define Plot Positions
+        const plotCoords = [
+            {t:20, l:350, bought: true}, // Start Drill
+            {t:20, l:50}, {t:140, l:50}, {t:260, l:50}, {t:380, l:50},
+            {t:20, l:650}, {t:140, l:650}, {t:260, l:650}, {t:380, l:650}
+        ];
 
-        window.addEventListener('keypress', (e) => {
+        function initPlots() {
+            plotCoords.forEach((coord, index) => {
+                let pDiv = document.createElement('div');
+                pDiv.className = 'plot';
+                pDiv.style.top = coord.t + "px";
+                pDiv.style.left = coord.l + "px";
+                pDiv.id = "plot-" + index;
+                container.appendChild(pDiv);
+                
+                let plotObj = {
+                    ...coord,
+                    id: index,
+                    progress: 0,
+                    div: pDiv,
+                    drillDiv: null
+                };
+                
+                if(coord.bought) createDrill(plotObj);
+                plots.push(plotObj);
+            });
+        }
+
+        function createDrill(plot) {
+            plot.bought = true;
+            plot.div.innerHTML = ""; // Clear "PLOT X" text
+            
+            let wrapper = document.createElement('div');
+            let bar = document.createElement('div');
+            bar.className = 'progress-bar';
+            let fill = document.createElement('div');
+            fill.className = 'progress-fill';
+            let machine = document.createElement('div');
+            machine.className = 'drill-machine';
+            machine.innerHTML = "⚙️";
+
+            bar.appendChild(fill);
+            wrapper.appendChild(bar);
+            wrapper.appendChild(machine);
+            plot.div.appendChild(wrapper);
+            plot.fillDiv = fill;
+        }
+
+        window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
+        window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
+
+        window.addEventListener('keypress', e => {
             const key = e.key.toLowerCase();
-            if (e.code === "Space") {
-                if (getDist(posX, posY, 350, 60) < 120) drillProgress = Math.min(100, drillProgress + 10);
-            }
-            if (key === "e") {
-                // Sell logic at counter
-                if (posY > 450 && inventory > 0) {
+            if (key === 'e') {
+                // Sell
+                if (posY > 480) {
                     gold += inventory * 10;
                     inventory = 0;
-                    goldText.innerText = gold;
-                    resourceText.innerText = inventory;
+                    updateUI();
                 }
-                // Pick up logic
-                activeCrates.forEach((crate, i) => {
-                    if (getDist(posX, posY, parseInt(crate.style.left), parseInt(crate.style.top)) < 50) {
+                // Pickup
+                activeCrates.forEach((c, i) => {
+                    if (getDist(posX, posY, parseInt(c.style.left), parseInt(c.style.top)) < 50) {
                         inventory++;
-                        resourceText.innerText = inventory;
-                        crate.remove();
+                        c.remove();
                         activeCrates.splice(i, 1);
+                        updateUI();
+                    }
+                });
+            }
+            if (key === 'e') {
+                plots.forEach(p => {
+                    if (!p.bought && getDist(posX, posY, p.l, p.t) < 80) {
+                        if (gold >= nextDrillCost) {
+                            gold -= nextDrillCost;
+                            nextDrillCost *= 10;
+                            createDrill(p);
+                            updateUI();
+                        }
                     }
                 });
             }
         });
 
+        function updateUI() {
+            goldText.innerText = gold;
+            resourceText.innerText = inventory;
+            costText.innerText = nextDrillCost;
+        }
+
         function getDist(x1, y1, x2, y2) { return Math.sqrt((x1-x2)**2 + (y1-y2)**2); }
 
         function gameLoop() {
-            drillProgress += 0.15;
-            if (drillProgress >= 100) { drillProgress = 0; spawnCrate(); }
-            progressFill.style.width = drillProgress + "%";
+            // 1. Drill Logic
+            plots.forEach(p => {
+                if (p.bought) {
+                    p.progress += 0.2;
+                    if (p.progress >= 100) {
+                        p.progress = 0;
+                        spawnCrate(p.l, p.t);
+                    }
+                    p.fillDiv.style.width = p.progress + "%";
+                }
+            });
 
-            let nextX = posX; let nextY = posY;
-            if (keys['w']) nextY -= speed;
-            if (keys['s']) nextY += speed;
-            if (keys['a']) nextX -= speed;
-            if (keys['d']) nextX += speed;
+            // 2. Movement & Collision
+            let nX = posX, nY = posY;
+            if (keys['w']) nY -= 5; if (keys['s']) nY += 5;
+            if (keys['a']) nX -= 5; if (keys['d']) nX += 5;
 
-            let collision = false;
-            // Drill Hitbox
-            if (nextX < 450 && nextX + 32 > 350 && nextY < 120 && nextY + 32 > 20) collision = true;
-            // Counter Hitbox
-            if (nextY + 32 > 500) collision = true;
-            // Screen Boundaries
-            if (nextX < 0 || nextX > 768 || nextY < 0) collision = true;
+            let col = false;
+            // Screen & Stall
+            if (nX < 0 || nX > 768 || nY < 0 || nY > 480) col = true;
+            // Solid Drills
+            plots.forEach(p => {
+                if (p.bought && nX < p.l + 90 && nX + 32 > p.l && nY < p.t + 90 && nY + 32 > p.t) col = true;
+            });
 
-            if (!collision) { posX = nextX; posY = nextY; }
+            if (!col) { posX = nX; posY = nY; }
             player.style.left = posX + "px"; player.style.top = posY + "px";
 
-            // Prompt logic
-            let nearCrate = activeCrates.some(c => getDist(posX, posY, parseInt(c.style.left), parseInt(c.style.top)) < 50);
-            let nearCounter = (posY > 450);
-            prompt.style.display = (nearCrate || nearCounter) ? "block" : "none";
+            // 3. Prompts
+            let currentPrompt = "";
+            if (posY > 480) currentPrompt = "PRESS E TO SELL";
+            plots.forEach(p => {
+                if (!p.bought && getDist(posX, posY, p.l, p.t) < 80) {
+                    currentPrompt = gold >= nextDrillCost ? "PRESS B TO BUY DRILL ($" + nextDrillCost + ")" : "NEED $" + nextDrillCost;
+                }
+            });
+            prompt.innerText = currentPrompt;
 
             requestAnimationFrame(gameLoop);
         }
 
-        function spawnCrate() {
+        function spawnCrate(x, y) {
             const c = document.createElement('div');
             c.className = 'crate';
-            c.style.left = (350 + Math.random() * 80) + "px";
-            c.style.top = "130px";
+            c.style.left = (x + 40) + "px";
+            c.style.top = (y + 110) + "px";
             container.appendChild(c);
             activeCrates.push(c);
         }
 
+        initPlots();
         gameLoop();
     </script>
 </body>
